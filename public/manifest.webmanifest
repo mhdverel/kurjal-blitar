@@ -1,0 +1,12 @@
+{
+  "name": "KURJAL Blitar",
+  "short_name": "KURJAL",
+  "description": "Dashboard operasional kurir lokal Blitar",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fbfaf8",
+  "theme_color": "#181d26",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
