@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kurjal-r2",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-08-21",
+  "account_id": "768d79d07ae53d4a4f756c7ca93dd344",
+  "workers_dev": true,
+  "vars": {
+    "FIREBASE_PROJECT_ID": "kurjal-blitar",
+    "FIRESTORE_DATABASE": "default",
+    "ALLOWED_ORIGINS": "http://localhost:5173,https://kurjal-blitar.web.app,https://kurjal-blitar.firebaseapp.com"
+  },
+  "r2_buckets": [
+    {
+      "binding": "SETTLEMENT_PROOFS",
+      "bucket_name": "kurjal"
+    }
+  ]
+}

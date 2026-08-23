@@ -1,0 +1,226 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed data model
+    // ===============================================================
+    // users/{uid}: uid, driverId, email, name, phone, vehicle, plate,
+    // role, accountStatus, createdAt. All fields required; identity, role,
+    // email, and createdAt are immutable from the client.
+    // orders/{autoId}: driverId, driverName, customerName, orderType,
+    // deliveryFee, notes, createdAt. Immutable ledger entry.
+    // settlements/{weekKey_uid}: driverId, weekKey, weekStart, weekEnd,
+    // proofPath, status, submittedAt, reviewedAt, reviewedBy.
+    // settings/deliveryFee: eleven nonnegative integer tariff fields plus
+    // updatedAt (server timestamp) and updatedBy (Admin UID).
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function uidUnchanged(userId) {
+      return isAuthenticated()
+        && userId == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return request.resource.data.uid == resource.data.uid;
+    }
+
+    function isAdmin() {
+      return isAuthenticated()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
+    }
+
+    function isApprovedDriver() {
+      let profile = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return profile.role == 'DRIVER' && profile.accountStatus == 'APPROVED';
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasOnly([
+          'uid', 'driverId', 'email', 'name', 'phone', 'vehicle', 'plate',
+          'role', 'accountStatus', 'createdAt'
+        ])
+        && data.keys().hasAll([
+          'uid', 'driverId', 'email', 'name', 'phone', 'vehicle', 'plate',
+          'role', 'accountStatus', 'createdAt'
+        ])
+        && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128
+        && data.driverId is string && data.driverId.size() > 0 && data.driverId.size() <= 128
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 254
+        && data.email.matches('^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$')
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 80
+        && data.phone is string && data.phone.size() >= 5 && data.phone.size() <= 25
+        && data.vehicle is string && data.vehicle.size() <= 80
+        && data.plate is string && data.plate.size() <= 20
+        && data.role in ['ADMIN', 'DRIVER']
+        && data.accountStatus in ['PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED']
+        && data.createdAt is timestamp;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasOnly([
+          'driverId', 'driverName', 'customerName', 'orderType',
+          'deliveryFee', 'notes', 'createdAt'
+        ])
+        && data.keys().hasAll([
+          'driverId', 'driverName', 'customerName', 'orderType',
+          'deliveryFee', 'notes', 'createdAt'
+        ])
+        && data.driverId is string && data.driverId.size() > 0 && data.driverId.size() <= 128
+        && data.driverName is string && data.driverName.size() > 0 && data.driverName.size() <= 80
+        && data.customerName is string && data.customerName.size() > 0 && data.customerName.size() <= 80
+        && data.orderType in ['FOOD', 'PACKAGE', 'RIDE', 'PICKUP', 'OTHER']
+        && data.deliveryFee is int && data.deliveryFee > 0 && data.deliveryFee <= 10000000
+        && data.notes is string && data.notes.size() <= 500
+        && data.createdAt is timestamp;
+    }
+
+    function isValidSettlement(data, settlementId) {
+      return data.keys().hasOnly([
+          'driverId', 'weekKey', 'weekStart', 'weekEnd', 'proofPath',
+          'status', 'submittedAt', 'reviewedAt', 'reviewedBy'
+        ])
+        && data.keys().hasAll([
+          'driverId', 'weekKey', 'weekStart', 'weekEnd', 'proofPath',
+          'status', 'submittedAt', 'reviewedAt', 'reviewedBy'
+        ])
+        && data.driverId is string && data.driverId.size() > 0 && data.driverId.size() <= 128
+        && data.weekKey is string && data.weekKey.size() == 10
+        && data.weekKey.matches('^\\d{4}-\\d{2}-\\d{2}$')
+        && settlementId == data.weekKey + '_' + data.driverId
+        && data.weekStart is timestamp && data.weekEnd is timestamp
+        && data.weekEnd == data.weekStart + duration.value(7, 'd')
+        && data.proofPath is string && data.proofPath.size() <= 256
+        && data.proofPath == 'settlement-proofs/' + data.driverId + '/' + data.weekKey
+        && data.status in ['WAITING_CONFIRMATION', 'PAID', 'REJECTED']
+        && data.submittedAt is timestamp
+        && (data.reviewedAt == null || data.reviewedAt is timestamp)
+        && data.reviewedBy is string && data.reviewedBy.size() <= 128
+        && ((data.status == 'WAITING_CONFIRMATION' && data.reviewedAt == null && data.reviewedBy == '')
+          || (data.status in ['PAID', 'REJECTED'] && data.reviewedAt is timestamp && data.reviewedBy.size() > 0));
+    }
+
+    function isValidDeliveryFee(data) {
+      return data.keys().hasOnly([
+          'upTo4Km', 'upTo5Km', 'upTo6Km', 'additionalPerKm',
+          'heavySurcharge', 'obrokSurcharge', 'rideSurcharge', 'cakeSurcharge',
+          'after10PmSurcharge', 'afterMidnightSurcharge',
+          'roundTripMultiplier', 'updatedAt', 'updatedBy'
+        ])
+        && data.keys().hasAll([
+          'upTo4Km', 'upTo5Km', 'upTo6Km', 'additionalPerKm',
+          'heavySurcharge', 'obrokSurcharge', 'rideSurcharge', 'cakeSurcharge',
+          'after10PmSurcharge', 'afterMidnightSurcharge',
+          'roundTripMultiplier', 'updatedAt', 'updatedBy'
+        ])
+        && data.upTo4Km is int && data.upTo4Km >= 0
+        && data.upTo5Km is int && data.upTo5Km >= data.upTo4Km
+        && data.upTo6Km is int && data.upTo6Km >= data.upTo5Km
+        && data.additionalPerKm is int && data.additionalPerKm >= 0
+        && data.heavySurcharge is int && data.heavySurcharge >= 0
+        && data.obrokSurcharge is int && data.obrokSurcharge >= 0
+        && data.rideSurcharge is int && data.rideSurcharge >= 0
+        && data.cakeSurcharge is int && data.cakeSurcharge >= 0
+        && data.after10PmSurcharge is int && data.after10PmSurcharge >= 0
+        && data.afterMidnightSurcharge is int && data.afterMidnightSurcharge >= 0
+        && data.roundTripMultiplier is int
+        && data.roundTripMultiplier >= 1 && data.roundTripMultiplier <= 10
+        && data.updatedAt is timestamp && data.updatedAt == request.time
+        && data.updatedBy is string && data.updatedBy == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+
+      allow create: if isOwner(userId)
+        && uidUnchanged(userId)
+        && isValidUser(request.resource.data)
+        && request.resource.data.driverId == request.auth.uid
+        && request.resource.data.role == 'DRIVER'
+        && request.resource.data.accountStatus == 'PENDING'
+        && request.resource.data.createdAt == request.time;
+
+      allow update: if isValidUser(request.resource.data)
+        && uidNotModified()
+        && (
+          (isOwner(userId)
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['name', 'phone', 'vehicle', 'plate']))
+          || (isAdmin()
+            && userId != request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['accountStatus']))
+        );
+
+      allow delete: if false;
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdmin()
+        || (isAuthenticated() && resource.data.driverId == request.auth.uid);
+
+      allow create: if isApprovedDriver()
+        && isValidOrder(request.resource.data)
+        && request.resource.data.driverId == request.auth.uid
+        && request.resource.data.driverName
+          == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name
+        && request.resource.data.createdAt == request.time;
+
+      allow update, delete: if false;
+    }
+
+    match /settlements/{settlementId} {
+      allow read: if isAdmin()
+        || (isAuthenticated() && resource.data.driverId == request.auth.uid);
+
+      allow create: if isApprovedDriver()
+        && isValidSettlement(request.resource.data, settlementId)
+        && request.resource.data.driverId == request.auth.uid
+        && request.resource.data.status == 'WAITING_CONFIRMATION'
+        && request.resource.data.weekEnd <= request.time
+        && request.resource.data.submittedAt == request.time;
+
+      allow update: if isValidSettlement(request.resource.data, settlementId)
+        && (
+          (isApprovedDriver()
+            && resource.data.driverId == request.auth.uid
+            && request.resource.data.driverId == request.auth.uid
+            && resource.data.status == 'REJECTED'
+            && request.resource.data.status == 'WAITING_CONFIRMATION'
+            && request.resource.data.weekEnd <= request.time
+            && request.resource.data.submittedAt == request.time
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'proofPath', 'status', 'submittedAt', 'reviewedAt', 'reviewedBy'
+            ]))
+          || (isAdmin()
+            && resource.data.status == 'WAITING_CONFIRMATION'
+            && request.resource.data.status in ['PAID', 'REJECTED']
+            && request.resource.data.reviewedAt == request.time
+            && request.resource.data.reviewedBy == request.auth.uid
+            && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['status', 'reviewedAt', 'reviewedBy']))
+        );
+
+      allow delete: if false;
+    }
+
+    match /settings/deliveryFee {
+      allow read: if isAdmin() || isApprovedDriver();
+      allow create: if isAdmin() && isValidDeliveryFee(request.resource.data);
+      allow update: if isAdmin() && isValidDeliveryFee(request.resource.data);
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
