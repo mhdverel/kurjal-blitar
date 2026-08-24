@@ -1,4 +1,4 @@
-/* Hallmark · pre-emit critique: P4 H4 E5 S5 R5 V4 */
+/* Hallmark · pre-emit critique: P5 H5 E5 S5 R5 V4 */
 /* Hallmark · genre: modern-minimal · macrostructure: Workbench · theme: DESIGN.md Airtable · tone: sober utilitarian-editorial · anchor hue: coral · enrichment: none · nav: app rail + mobile action rail · footer: none (application shell) · contrast: pass · slop: pass · mobile: pass */
 @import url('../tokens.css');
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
@@ -662,31 +662,34 @@ body:has(.sidebar--open) { overflow: clip; }
 }
 .toast > button { display: grid; width: 2.75rem; height: 2.75rem; flex: 0 0 auto; margin-left: auto; place-items: center; background: transparent; color: inherit; cursor: pointer; }
 
-.access-shell { min-height: 100dvh; padding: var(--space-md); background: var(--color-paper-soft); }
+.access-shell {
+  min-height: 100dvh;
+  padding: max(var(--space-md), env(safe-area-inset-top)) max(var(--space-md), env(safe-area-inset-right)) max(var(--space-lg), env(safe-area-inset-bottom)) max(var(--space-md), env(safe-area-inset-left));
+  background: var(--color-paper-soft);
+}
 .access-shell > header { display: flex; width: min(100%, 72rem); margin: 0 auto; align-items: center; justify-content: space-between; gap: var(--space-md); }
-.access-shell > main { display: grid; width: min(100%, 72rem); min-height: calc(100dvh - 6rem); margin: 0 auto; place-items: center; padding: var(--space-xl) 0; }
+.access-shell > main { display: grid; width: min(100%, 72rem); margin: 0 auto; place-items: start center; padding-top: var(--space-lg); }
 
 .login-card,
 .registration-card { display: grid; width: 100%; overflow: hidden; border: 1px solid var(--color-rule); border-radius: var(--radius-md); background: var(--color-paper); }
 .login-card { max-width: 58rem; }
 .login-copy,
-.registration-copy { padding: var(--space-xl); background: var(--color-forest); color: var(--color-on-dark); }
+.registration-copy { background: var(--color-forest); color: var(--color-on-dark); }
+.login-copy { padding: var(--space-lg); }
+.registration-copy { padding: var(--space-xl); }
 .login-copy .eyebrow,
 .registration-copy .eyebrow { color: var(--color-mint); }
-.login-copy h1,
+.login-copy h1 { min-width: 0; margin-top: var(--space-sm); overflow-wrap: anywhere; font-size: clamp(var(--text-lg), 8vw, var(--text-xl)); }
 .registration-copy h1 { margin-top: var(--space-md); }
 .login-copy > p,
 .registration-copy p { margin-top: var(--space-md); color: var(--color-forest-soft); }
-.login-copy > div { display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-xl); padding-top: var(--space-lg); border-top: 1px solid color-mix(in oklab, var(--color-on-dark) 25%, transparent); color: var(--color-mint); }
-.login-copy > div span { display: grid; }
-.login-copy > div small { color: var(--color-forest-soft); }
+.login-copy > p { max-width: 38rem; line-height: 1.5; }
 .registration-copy ol { display: grid; gap: var(--space-sm); margin: var(--space-xl) 0 0; padding-left: 1.25rem; }
-.login-form,
+.login-form { padding: var(--space-lg); }
 .registration-form { padding: var(--space-xl); }
 .login-form h2 { margin-top: calc(var(--space-sm) * -1); font-size: var(--text-xl); }
 .login-form > p:not(.form-error) { margin-top: calc(var(--space-sm) * -1); color: var(--color-muted); }
-.register-link { text-align: center; font-size: var(--text-sm); }
-.register-link .text-button { margin-left: 0.2rem; }
+.register-link { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0 var(--space-2xs); text-align: center; font-size: var(--text-sm); }
 .form-pair { display: grid; gap: var(--space-md); }
 
 .application-card { width: min(100%, 34rem); padding: var(--space-2xl); border: 1px solid var(--color-rule); border-radius: var(--radius-md); background: var(--color-paper); text-align: center; }
@@ -745,7 +748,6 @@ body:has(.sidebar--open) { overflow: clip; }
   .tariff-form > .button { grid-column: 1 / -1; }
   .proof-panel { grid-template-columns: 1fr minmax(18rem, 0.7fr); align-items: center; }
   .form-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .login-card,
   .registration-card { grid-template-columns: minmax(18rem, 0.85fr) minmax(0, 1.15fr); }
   .confirm-dialog,
   .proof-dialog,
@@ -755,6 +757,14 @@ body:has(.sidebar--open) { overflow: clip; }
   .fee-dialog { width: min(calc(100% - 2rem), 58rem); max-height: calc(100dvh - 2rem); }
   .toast { right: var(--space-xl); bottom: var(--space-xl); left: auto; max-width: 28rem; }
   .desktop-only { display: inline-flex; }
+}
+
+@media (min-width: 48rem) {
+  .access-shell > main { min-height: calc(100dvh - 6rem); place-items: center; padding: var(--space-xl) 0; }
+  .login-card { grid-template-columns: minmax(18rem, 0.85fr) minmax(0, 1.15fr); }
+  .login-copy,
+  .login-form { padding: var(--space-xl); }
+  .login-copy h1 { margin-top: var(--space-md); font-size: var(--text-2xl); }
 }
 
 @media (min-width: 64rem) {
